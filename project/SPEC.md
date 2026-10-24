@@ -189,3 +189,19 @@ The hash table will track:
 It will use separate chaining to handle collisions.
 
 The aux module will handle the hash table.
+
+## Store Design – Week 4
+
+I used a sorted array to store the sensor records.
+
+Each record contains a timestamp, temperature, humidity, state, and status word.
+
+I convert the temperature into a key by multiplying it by 2 and converting the result to an integer.
+
+For example, 13.0°C and 13.2°C have the same key.
+
+If two records have the same key, I keep both records in the order they were added.
+
+I used an opaque type to hide the store data from other files.
+
+In Week 8, I will replace the sorted array with a binary search tree.

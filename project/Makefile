@@ -30,7 +30,16 @@ report.o: report.c report.h
 iom361_r4.o: iom361_r4.c iom361_r4.h
 	$(CC) $(CFLAGS) -c iom361_r4.c
 
-clean:
-	rm -f $(OBJS) cellar
 
-.PHONY: all clean
+tests/test_store: tests/test_store.c store.c store.h sensor.h
+	$(CC) $(CFLAGS) -I. tests/test_store.c store.c -o tests/test_store
+
+test: tests/test_store
+	./tests/test_store
+
+
+clean:
+	rm -f $(OBJS) cellar tests/test_store
+
+.PHONY: all test clean
+
