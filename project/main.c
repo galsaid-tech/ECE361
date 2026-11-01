@@ -21,9 +21,6 @@ typedef struct {
     unsigned int switches;
 } scenario_t;
 
-
-
-
 /* Create the status word */
 static uint32_t make_status(state_t state)
 {
@@ -155,7 +152,8 @@ static int load_scenario(const char *filename,
             *start = (time_t)start_seconds;
 
             if ((long long)*start != start_seconds) {
-                fprintf(stderr, "Start time is out of range.\n");
+                fprintf(stderr,
+                        "Start time is out of range.\n");
                 goto error;
             }
 
@@ -224,6 +222,17 @@ error:
     free(items);
     fclose(file);
     return -1;
+}
+
+/* Add up ticks from the hash table */
+static void add_state_ticks(const aux_entry_t *entry,
+                            void *context)
+{
+    unsigned long long *total = context;
+
+    if (entry != NULL && total != NULL) {
+        *total += entry->total_ticks;
+    }
 }
 
 /* Main program */
@@ -390,6 +399,22 @@ int main(int argc, char *argv[])
                 failed = 1;
                 break;
             }
+        }
+    }
+
+    /* Check that all state ticks were counted */
+    if (!failed) {
+        unsigned long long total_ticks = 0;
+
+        aux_walk(table, add_state_ticks, &total_ticks);
+
+        unsigned long long expected_ticks =
+            (unsigned long long)last_tick + 1ULL;
+
+        if (total_ticks != expected_ticks) {
+            fprintf(stderr,
+                    "Hash table total ticks mismatch.\n");
+            failed = 1;
         }
     }
 
