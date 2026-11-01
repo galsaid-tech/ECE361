@@ -18,5 +18,8 @@ typedef struct {
     float temperature;
     float humidity;
 } reading_t;
+#include <stdint.h>
 
+int sensor_read(uint32_t *base, time_t timestamp,
+                reading_t *reading);
 #endif

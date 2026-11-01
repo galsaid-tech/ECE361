@@ -5,49 +5,47 @@
 #include <stdint.h>
 #include "sensor.h"
 
-/*
- * This module saves sensor readings.
- *
- * For now, we use a sorted array.
- * In Week 8, we will use a Binary Search Tree.
- */
-
-/* Stores one record */
+/* Stores one sensor record */
 typedef struct {
     reading_t reading;
     int state;
     uint32_t status;
 } record_t;
 
-/* Opaque type */
+/* Hidden store structure */
 typedef struct store store_t;
 
-/* Creates an empty store */
+/* Function used when visiting records */
+typedef void (*store_callback_t)(
+    const record_t *record, void *context);
+
+/* Create an empty store */
 store_t *store_create(void);
 
-/* Adds a record */
+/* Add a record */
 int store_insert(store_t *s, record_t record);
 
-/* Returns the number of records */
+/* Count all records */
 int store_count(const store_t *s);
 
-/* Releases the store */
+/* Find a record by temperature key */
+const record_t *store_find(
+    const store_t *s, float temperature);
+
+/* Compare two records */
+int record_compare(
+    const record_t *a, const record_t *b);
+
+/* Visit all records in sorted order */
+void store_walk(
+    const store_t *s,
+    store_callback_t callback,
+    void *context);
+
+/* Get the height of the tree */
+int store_height(const store_t *s);
+
+/* Free the tree */
 void store_destroy(store_t *s);
-
-/* Compares two records by temperature key */
-int record_compare(const record_t *a, const record_t *b);
-
-/* Finds a record using a temperature key.
-   Returns NULL if the record is not found. */
-const record_t *store_find(const store_t *s, float temperature);
-
-
-/* Visits one record */
-typedef void (*store_callback_t)(const record_t *record, void *context);
-
-/* Visits all records in sorted order */
-void store_walk(const store_t *s,
-                store_callback_t callback,
-                void *context);
 
 #endif

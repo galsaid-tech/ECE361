@@ -1,0 +1,20 @@
+
+# Compiled C files
+*.o
+*.out
+*.exe
+
+# Project executables
+project/cellar
+project/tests/test_store
+project/tests/test_fsm
+project/tests/test_sensor
+project/tests/test_aux
+project/tests/test_report
+project/tests/test_status
+
+# macOS debug files
+*.dSYM/
+
+# macOS system files
+.DS_Store

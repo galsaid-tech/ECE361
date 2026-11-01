@@ -1,30 +1,47 @@
 
 #include "store.h"
 #include <stdlib.h>
+#include <math.h>
 
-/* Maximum records for now */
-#define STORE_MAX 100
+/* List for records with the same key */
+typedef struct record_node {
+    record_t record;
+    struct record_node *next;
+} record_node_t;
+
+/* One node in the binary search tree */
+typedef struct tree_node {
+    int key;
+    record_node_t *records;
+    record_node_t *last;
+    struct tree_node *left;
+    struct tree_node *right;
+} tree_node_t;
 
 /* Hidden store structure */
 struct store {
-    record_t records[STORE_MAX];
+    tree_node_t *root;
     int count;
 };
 
-/* Convert temperature into a 0.5 C key */
-static int temperature_key(float temperature) {
-    int key = (int)(temperature * 2.0f);
-    return key;
+/* Convert temperature to 0.5 C key */
+static int temperature_key(float temperature)
+{
+    return (int)floorf(temperature * 2.0f);
 }
 
 /* Compare two records */
-int record_compare(const record_t *a, const record_t *b) {
+int record_compare(const record_t *a,
+                   const record_t *b)
+{
     if (a == NULL || b == NULL) {
         return 0;
     }
 
-    int key_a = temperature_key(a->reading.temperature);
-    int key_b = temperature_key(b->reading.temperature);
+    int key_a = temperature_key(
+        a->reading.temperature);
+    int key_b = temperature_key(
+        b->reading.temperature);
 
     if (key_a < key_b) {
         return -1;
@@ -38,43 +55,100 @@ int record_compare(const record_t *a, const record_t *b) {
 }
 
 /* Create an empty store */
-store_t *store_create(void) {
+store_t *store_create(void)
+{
     store_t *s = malloc(sizeof(store_t));
 
     if (s == NULL) {
         return NULL;
     }
 
+    s->root = NULL;
     s->count = 0;
+
     return s;
 }
 
-/* Add a record in temperature key order */
-int store_insert(store_t *s, record_t record) {
-    if (s == NULL || s->count >= STORE_MAX) {
+/* Create a record list item */
+static record_node_t *create_record(record_t record)
+{
+    record_node_t *item = malloc(sizeof(*item));
+
+    if (item == NULL) {
+        return NULL;
+    }
+
+    item->record = record;
+    item->next = NULL;
+
+    return item;
+}
+
+/* Insert one record into the tree */
+int store_insert(store_t *s, record_t record)
+{
+    if (s == NULL) {
         return -1;
     }
 
-    int pos = 0;
+    int key = temperature_key(
+        record.reading.temperature);
 
-    while (pos < s->count &&
-           record_compare(&s->records[pos], &record) <= 0) {
-        pos++;
+    tree_node_t **link = &s->root;
+
+    /* Find the correct tree position */
+    while (*link != NULL) {
+        if (key < (*link)->key) {
+            link = &(*link)->left;
+        }
+        else if (key > (*link)->key) {
+            link = &(*link)->right;
+        }
+        else {
+            /* Same key: add to its list */
+            record_node_t *item = create_record(record);
+
+            if (item == NULL) {
+                return -1;
+            }
+
+            (*link)->last->next = item;
+            (*link)->last = item;
+            s->count++;
+
+            return 0;
+        }
     }
 
-    /* Move records to make space */
-    for (int i = s->count; i > pos; i--) {
-        s->records[i] = s->records[i - 1];
+    /* Create a new tree node */
+    tree_node_t *node = malloc(sizeof(*node));
+
+    if (node == NULL) {
+        return -1;
     }
 
-    s->records[pos] = record;
+    record_node_t *item = create_record(record);
+
+    if (item == NULL) {
+        free(node);
+        return -1;
+    }
+
+    node->key = key;
+    node->records = item;
+    node->last = item;
+    node->left = NULL;
+    node->right = NULL;
+
+    *link = node;
     s->count++;
 
     return 0;
 }
 
-/* Return the number of stored records */
-int store_count(const store_t *s) {
+/* Return number of records */
+int store_count(const store_t *s)
+{
     if (s == NULL) {
         return 0;
     }
@@ -82,40 +156,125 @@ int store_count(const store_t *s) {
     return s->count;
 }
 
-/* Find a record using its temperature key */
-const record_t *store_find(const store_t *s, float temperature) {
+/* Find the first record with a matching key */
+const record_t *store_find(
+    const store_t *s, float temperature)
+{
     if (s == NULL) {
         return NULL;
     }
 
     int key = temperature_key(temperature);
+    tree_node_t *current = s->root;
 
-    for (int i = 0; i < s->count; i++) {
-        int current_key =
-            temperature_key(s->records[i].reading.temperature);
-
-        if (current_key == key) {
-            return &s->records[i];
+    while (current != NULL) {
+        if (key < current->key) {
+            current = current->left;
+        }
+        else if (key > current->key) {
+            current = current->right;
+        }
+        else {
+            return &current->records->record;
         }
     }
 
     return NULL;
 }
 
-/* Visit every stored record in order */
-void store_walk(const store_t *s,
-                store_callback_t callback,
-                void *context) {
+/* Visit nodes from smallest to largest */
+static void walk_nodes(
+    const tree_node_t *node,
+    store_callback_t callback,
+    void *context)
+{
+    if (node == NULL) {
+        return;
+    }
+
+    /* Visit left subtree */
+    walk_nodes(node->left, callback, context);
+
+    /* Visit every record with this key */
+    const record_node_t *item = node->records;
+
+    while (item != NULL) {
+        callback(&item->record, context);
+        item = item->next;
+    }
+
+    /* Visit right subtree */
+    walk_nodes(node->right, callback, context);
+}
+
+/* Visit all records in sorted order */
+void store_walk(
+    const store_t *s,
+    store_callback_t callback,
+    void *context)
+{
     if (s == NULL || callback == NULL) {
         return;
     }
 
-    for (int i = 0; i < s->count; i++) {
-        callback(&s->records[i], context);
-    }
+    walk_nodes(s->root, callback, context);
 }
 
-/* Free the store */
-void store_destroy(store_t *s) {
+/* Calculate height of a tree node */
+static int node_height(const tree_node_t *node)
+{
+    if (node == NULL) {
+        return 0;
+    }
+
+    int left_height = node_height(node->left);
+    int right_height = node_height(node->right);
+
+    if (left_height > right_height) {
+        return left_height + 1;
+    }
+
+    return right_height + 1;
+}
+
+/* Return the height of the tree */
+int store_height(const store_t *s)
+{
+    if (s == NULL) {
+        return 0;
+    }
+
+    return node_height(s->root);
+}
+
+/* Free every node and its records */
+static void destroy_nodes(tree_node_t *node)
+{
+    if (node == NULL) {
+        return;
+    }
+
+    destroy_nodes(node->left);
+    destroy_nodes(node->right);
+
+    record_node_t *item = node->records;
+
+    while (item != NULL) {
+        record_node_t *next = item->next;
+        free(item);
+        item = next;
+    }
+
+    free(node);
+}
+
+/* Free the whole store */
+void store_destroy(store_t *s)
+{
+    if (s == NULL) {
+        return;
+    }
+
+    destroy_nodes(s->root);
     free(s);
 }
