@@ -13,6 +13,50 @@ static void count_entry(const aux_entry_t *entry,
     (*count)++;
 }
 
+/* Add up ticks from every state */
+static void sum_ticks(const aux_entry_t *entry,
+                      void *context)
+{
+    unsigned long long *total = context;
+
+    assert(entry != NULL);
+    *total += entry->total_ticks;
+}
+
+/* Test that all state ticks add up to 29 */
+static void test_total_ticks(void)
+{
+    aux_t *table = aux_create();
+    assert(table != NULL);
+
+    /* Example: 29 simulated seconds */
+    for (int i = 0; i < 10; i++) {
+        assert(aux_update(table, STABLE, 1) == 0);
+    }
+
+    for (int i = 0; i < 6; i++) {
+        assert(aux_update(table, COOLING, 1) == 0);
+    }
+
+    for (int i = 0; i < 5; i++) {
+        assert(aux_update(table, HUMIDIFY, 1) == 0);
+    }
+
+    for (int i = 0; i < 8; i++) {
+        assert(aux_update(table, ALARM, 1) == 0);
+    }
+
+    unsigned long long total = 0;
+    aux_walk(table, sum_ticks, &total);
+
+    assert(total == 29);
+
+    printf("Test 9: Total ticks = 29 - PASSED\n");
+
+    aux_destroy(table);
+}
+
+
 int main(void)
 {
     aux_t *table = aux_create();
@@ -80,8 +124,9 @@ int main(void)
     /* Free table with chains */
     aux_destroy(table);
 
-    printf("Test 8: Destroy table - PASSED\n");
-    printf("All 8 AUX tests passed!\n");
+ test_total_ticks();
 
-    return 0;
+printf("All 9 AUX tests passed!\n");
+
+return 0;
 }

@@ -84,7 +84,16 @@ test: cellar $(TESTS)
 		echo "report_case scenario - FAILED"; \
 		failed=$$((failed + 1)); \
 	fi; \
-	rm -f "$$tmp"; \
+	if ./cellar scenarios/february_clock.txt > "$$tmp" && \
+	   cut -d' ' -f1,2 "$$tmp" > "$$tmp.clock" && \
+	   diff -u scenarios/february_clock.expected "$$tmp.clock"; then \
+		echo "february_clock scenario - PASSED"; \
+		passed=$$((passed + 1)); \
+	else \
+		echo "february_clock scenario - FAILED"; \
+		failed=$$((failed + 1)); \
+	fi; \
+	rm -f "$$tmp" "$$tmp.clock"; \
 	echo "Tests passed: $$passed, failed: $$failed"; \
 	test "$$failed" -eq 0
 
