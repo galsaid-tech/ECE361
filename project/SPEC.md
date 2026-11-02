@@ -65,7 +65,16 @@ All other state-event combinations keep their current state in the present trans
 
 The event-detection code prevents `EV_ACK` from being sent when the temperature is outside the safe range.
 
-The current implementation chooses one event each tick. The output action is applied by `main.c` after the next state is selected.
+
+The program chooses one event each tick.
+
+The transition table stores both the next state
+and the action.
+
+The main program uses the new state to choose
+the LEDs, RGB color, and status word.
+
+The action table is also checked by unit tests.
 
 ## 5. State Machine Diagram
 
@@ -275,6 +284,23 @@ For each simulated second, the main program updates the entry for the current st
 
 The structure is hidden inside `aux.c`.
 
+
+I tested the hash table using the every_state
+scenario.
+
+The results were:
+
+- STABLE: 17 ticks
+- COOLING: 4 ticks
+- HUMIDIFY: 4 ticks
+- ALARM: 4 ticks
+
+Total = 29 ticks.
+
+The total matches the number of readings
+in the scenario.
+
+
 ## 13. Hash Table Comparison
 
 I used separate chaining instead of linear probing.
@@ -329,11 +355,13 @@ The program uses `_iom361_set_sensor1()` and `_iom361_set_switches()` to simulat
 
 The sensor and FSM modules do not call these simulation functions.
 
+
 ## 16. Tests
 
-I created unit tests for the BST, FSM, sensor, hash table, and report.
+I created unit tests for the BST, FSM, sensor,
+hash table, report, and status word.
 
-I also created seven scenarios:
+I also created eight scenarios:
 
 1. Normal operation
 2. Every state twice
@@ -342,10 +370,25 @@ I also created seven scenarios:
 5. Unexpected switch inputs
 6. Report with at least 30 readings
 7. Midnight date change
+8. February 28 to March 1, 2027
 
-The tests check state changes, temperature boundaries, duplicate tree keys, hash collisions, sensor conversions, report results, and scenario output.
+The tests check state changes, temperature
+boundaries, duplicate BST records, hash
+collisions, sensor conversions, status bits,
+report results, and scenario output.
 
-The current test suite has 34 unit test cases and 7 scenario comparisons.
+The hash table also checks that the total
+number of ticks matches the scenario length.
+
+The project builds and runs on Linux.
+
+The latest make test result was:
+
+Tests passed: 14, failed: 0
+
+I also tested the project with AddressSanitizer
+and UndefinedBehaviorSanitizer.
+
 
 ## 17. Year 2038 Problem
 
