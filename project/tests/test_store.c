@@ -196,6 +196,57 @@ void test_100_records(void)
     printf("Test 6: 100 records - PASSED\n");
 }
 
+/* Check every record with a duplicate key */
+typedef struct {
+    int found_first;
+    int found_second;
+    int count;
+} duplicate_data_t;
+
+static void check_duplicates(const record_t *record,
+                             void *context)
+{
+    duplicate_data_t *data = context;
+
+    if (record->reading.temperature == 13.0f) {
+        data->found_first = 1;
+        data->count++;
+    }
+
+    if (record->reading.temperature == 13.2f) {
+        data->found_second = 1;
+        data->count++;
+    }
+}
+
+static void test_duplicate_records(void)
+{
+    store_t *s = store_create();
+    assert(s != NULL);
+
+    record_t a = {0};
+    record_t b = {0};
+
+    a.reading.temperature = 13.0f;
+    b.reading.temperature = 13.2f;
+
+    assert(store_insert(s, a) == 0);
+    assert(store_insert(s, b) == 0);
+
+    duplicate_data_t data = {0};
+
+    store_walk(s, check_duplicates, &data);
+
+    assert(data.count == 2);
+    assert(data.found_first == 1);
+    assert(data.found_second == 1);
+    assert(store_count(s) == 2);
+
+    printf("Test 7: Duplicate records - PASSED\n");
+
+    store_destroy(s);
+}
+
 int main(void)
 {
     test_compare();
@@ -205,7 +256,8 @@ int main(void)
     test_duplicates();
     test_100_records();
 
-    printf("All 6 BST tests passed!\n");
+    test_duplicate_records();
+printf("All 7 BST tests passed!\n");
 
     return 0;
 }
